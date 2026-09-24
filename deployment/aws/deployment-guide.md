@@ -12,14 +12,16 @@ SSH into the instance, then run:
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y docker.io nginx curl
+sudo apt-get install -y docker.io nginx curl git
 sudo systemctl enable --now docker nginx
 sudo usermod -aG docker "$USER"
 ```
 
-Log out and back in for Docker group membership to take effect. Install the two deployment scripts into `/opt/blue-green` (copy them from this repository), and make them executable:
+Log out and back in for Docker group membership to take effect. Clone your GitHub project on the instance (replace `OWNER` and `REPOSITORY`), then install the deployment scripts into `/opt/blue-green`:
 
 ```bash
+git clone https://github.com/OWNER/REPOSITORY.git ~/cloud-native-blue-green-deployment
+cd ~/cloud-native-blue-green-deployment
 sudo mkdir -p /opt/blue-green
 sudo cp deployment/blue-green/{deploy-ec2.sh,health-check.sh,rollback-ec2.sh} /opt/blue-green/
 sudo chmod +x /opt/blue-green/*.sh
