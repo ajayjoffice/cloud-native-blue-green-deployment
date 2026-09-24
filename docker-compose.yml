@@ -1,0 +1,30 @@
+services:
+  blue:
+    build: .
+    image: blue-green-demo:local
+    environment:
+      APP_VERSION: ${BLUE_VERSION:-v1.0.0}
+    ports: ["127.0.0.1:8001:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  green:
+    build: .
+    image: blue-green-demo:local
+    environment:
+      APP_VERSION: ${GREEN_VERSION:-v2.0.0}
+    ports: ["127.0.0.1:8002:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  nginx:
+    image: nginx:1.27-alpine
+    ports: ["8080:80"]
+    volumes:
+      - ./deployment/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deployment/nginx/active-upstream.conf:/etc/nginx/conf.d/active-upstream.conf:ro
+    depends_on: [blue, green]
