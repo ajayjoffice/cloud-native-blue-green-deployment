@@ -86,9 +86,9 @@ The active color is read from the Nginx config. The other service is recreated w
 
 ## CI/CD flow
 
-`.github/workflows/ci-cd.yml` runs on pull requests and pushes to `main`: checkout, Python setup, dependency install, Ruff, Pytest, Docker build, then a container health/version check. For pushes to `main`, a dependent job publishes the commit image to GitHub Container Registry and connects to EC2 over SSH. The EC2 script deploys to the inactive slot and validates `/health` and `/version` before reloading Nginx. A failed test, container check, or target health check stops the pipeline before the switch.
+`.github/workflows/ci-cd.yml` runs on pull requests and pushes to `main`: checkout, Python setup, dependency install, Ruff, Pytest, Docker build, then a container health/version check. For pushes to `main`, a dependent job on the repository's self-hosted EC2 runner pulls the commit image from GitHub Container Registry and deploys it to the inactive slot. It validates `/health` and `/version` before reloading Nginx. A failed test, container check, or target health check stops the pipeline before the switch.
 
-Configure repository secrets `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY`, `GHCR_USER`, and `GHCR_READ_TOKEN` (a GitHub token with read access to packages). The EC2 host needs Docker, Nginx, and the deployment scripts in `/opt/blue-green`. Details and exact host setup commands are in [the AWS guide](deployment/aws/deployment-guide.md).
+Keep the repository private while it uses a self-hosted runner. The EC2 runner needs Docker and Nginx installed and must be registered in the repository's Actions runner settings. The workflow uses its automatically provided `GITHUB_TOKEN` for GHCR access, so no SSH or GHCR secrets are needed. Details are in [the AWS guide](deployment/aws/deployment-guide.md).
 
 ## Rollback
 

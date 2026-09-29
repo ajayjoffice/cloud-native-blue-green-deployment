@@ -35,9 +35,11 @@ upstream active_app { server 127.0.0.1:8001; }
 
 Then validate and reload: `sudo nginx -t && sudo systemctl reload nginx`.
 
-## 3. GitHub Actions secrets
+## 3. GitHub Actions runner
 
-Add repository secrets `EC2_HOST` (public IP or DNS), `EC2_USER` (usually `ubuntu`), `EC2_SSH_KEY` (private key contents), `GHCR_USER`, and `GHCR_READ_TOKEN` (a GitHub token with read access to packages). The workflow builds and pushes the commit image, logs the EC2 Docker daemon into GHCR for pulling, then SSHes to deploy it.
+Register the EC2 instance as a repository-level self-hosted GitHub Actions runner. The workflow uses GitHub-hosted runners for tests and image publishing, then runs the deploy job on the EC2 runner. This avoids opening SSH to GitHub-hosted runner IPs. Keep the repository private while it uses a self-hosted runner.
+
+The deploy job authenticates to GHCR with the workflow's `GITHUB_TOKEN`, then runs `deployment/blue-green/deploy-ec2.sh` directly on EC2. No EC2 SSH secrets or GHCR personal access token are required. The runner service account must be able to run Docker and passwordless `sudo` for the deploy script.
 
 ## 4. Manual deployment and rollback
 
