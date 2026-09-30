@@ -39,7 +39,7 @@ Then validate and reload: `sudo nginx -t && sudo systemctl reload nginx`.
 
 Register the EC2 instance as a repository-level self-hosted GitHub Actions runner. The workflow uses GitHub-hosted runners for tests and image publishing, then runs the deploy job on the EC2 runner. This avoids opening SSH to GitHub-hosted runner IPs. Keep the repository private while it uses a self-hosted runner.
 
-The deploy job authenticates to GHCR with the workflow's `GITHUB_TOKEN`, then runs `deployment/blue-green/deploy-ec2.sh` directly on EC2. No EC2 SSH secrets or GHCR personal access token are required. The runner service account must be able to run Docker and passwordless `sudo` for the deploy script.
+The deploy job authenticates to GHCR with the workflow's `GITHUB_TOKEN`, installs the Nginx configuration, then runs `deployment/blue-green/deploy-ec2.sh` directly on EC2. No EC2 SSH secrets or GHCR personal access token are required. The runner service account must be able to run Docker and passwordless `sudo` for the deploy script. To roll back from the web, open `/dashboard`, follow its GitHub Actions link, and run the workflow manually; it checks the other slot before changing Nginx.
 
 ## 4. Manual deployment and rollback
 

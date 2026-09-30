@@ -37,6 +37,10 @@ Only the selected upstream receives user traffic. Both containers run the same A
 | `GET /version` | Current release identifier |
 | `POST /greet` | Small functional API; accepts `{"name":"Ada"}` |
 
+## Release dashboard
+
+Open `/dashboard` to see the live version, active color, health status, and the steps each release follows. The dashboard is read-only. Use its rollback link to open the authenticated GitHub Actions workflow and start a rollback there; the workflow checks the standby version before switching traffic.
+
 ## Run locally
 
 ```bash
@@ -86,7 +90,7 @@ The active color is read from the Nginx config. The other service is recreated w
 
 ## CI/CD flow
 
-`.github/workflows/ci-cd.yml` runs on pull requests and pushes to `main`: checkout, Python setup, dependency install, Ruff, Pytest, Docker build, then a container health/version check. For pushes to `main`, a dependent job on the repository's self-hosted EC2 runner pulls the commit image from GitHub Container Registry and deploys it to the inactive slot. It validates `/health` and `/version` before reloading Nginx. A failed test, container check, or target health check stops the pipeline before the switch.
+`.github/workflows/ci-cd.yml` runs on pull requests and pushes to `main`: checkout, Python setup, dependency install, Ruff, Pytest, Docker build, then a container health/version check. For pushes to `main`, a dependent job publishes the commit image to GitHub Container Registry and a job on the repository's self-hosted EC2 runner deploys it to the inactive slot. It validates `/health` and `/version` before reloading Nginx. A manual workflow dispatch runs the guarded rollback script.
 
 Keep the repository private while it uses a self-hosted runner. The EC2 runner needs Docker and Nginx installed and must be registered in the repository's Actions runner settings. The workflow uses its automatically provided `GITHUB_TOKEN` for GHCR access, so no SSH or GHCR secrets are needed. Details are in [the AWS guide](deployment/aws/deployment-guide.md).
 

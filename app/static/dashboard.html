@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#101918">
+    <title>Release dashboard · Blue/Green</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #f4f3ed;
+        --muted: #a6b2ab;
+        --panel: #17211f;
+        --line: #2a3934;
+        --mint: #a9e6bd;
+        --blue: #8db5ff;
+        --amber: #e8bd79;
+        --bg: #101918;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: radial-gradient(ellipse at 82% 2%, #263a32 0, transparent 33%), var(--bg);
+        color: var(--ink);
+        font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      a { color: inherit; }
+      .shell { width: min(1120px, calc(100% - 40px)); margin: 0 auto; }
+      header { height: 76px; border-bottom: 1px solid #ffffff12; display: flex; align-items: center; }
+      .topbar { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+      .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; letter-spacing: -.02em; }
+      .brand-mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; color: #102019; background: var(--mint); font-weight: 900; }
+      .repo { color: var(--muted); font-size: 13px; }
+      .live-pill, .tag { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 7px 11px; color: var(--muted); font-size: 12px; }
+      .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 12px #a9e6bd99; }
+      main { padding: 64px 0 72px; }
+      .eyebrow { color: var(--mint); font-size: 11px; font-weight: 750; letter-spacing: .15em; text-transform: uppercase; }
+      h1 { max-width: 780px; margin: 13px 0 14px; font-size: clamp(38px, 6vw, 68px); line-height: .99; letter-spacing: -.06em; font-weight: 650; }
+      .intro { max-width: 650px; margin: 0; color: var(--muted); font-size: 17px; }
+      .hero-row { display: flex; justify-content: space-between; align-items: end; gap: 30px; margin-bottom: 42px; }
+      .actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: end; }
+      .button { display: inline-flex; align-items: center; justify-content: center; min-height: 43px; padding: 0 15px; border: 1px solid var(--line); border-radius: 10px; text-decoration: none; font-size: 13px; font-weight: 650; transition: transform .15s, border-color .15s, background .15s; }
+      .button:hover { transform: translateY(-1px); border-color: #637a6d; }
+      .button.primary { background: var(--mint); color: #102019; border-color: var(--mint); }
+      .button.primary:hover { background: #c1f0cf; }
+      .panel { background: linear-gradient(145deg, #192522, #141d1b); border: 1px solid var(--line); border-radius: 18px; }
+      .release { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(240px, .65fr); overflow: hidden; }
+      .release-main { padding: 28px 30px; }
+      .release-side { padding: 28px; border-left: 1px solid var(--line); background: #ffffff03; }
+      .section-kicker { color: var(--muted); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; }
+      .version { margin: 12px 0 8px; font: 500 clamp(25px, 4vw, 38px)/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: -.055em; overflow-wrap: anywhere; }
+      .release-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; color: var(--muted); font-size: 13px; }
+      .slot-label { color: var(--mint); border-color: #a9e6bd4a; }
+      .slot-label.blue { color: var(--blue); border-color: #8db5ff55; }
+      .slot-label.green { color: var(--mint); border-color: #a9e6bd55; }
+      .release-side strong { display: block; margin: 8px 0 4px; font-size: 27px; letter-spacing: -.04em; }
+      .release-side p { margin: 0; color: var(--muted); font-size: 13px; }
+      .slot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0 48px; }
+      .slot { padding: 19px 21px; }
+      .slot-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 13px; }
+      .slot-name { display: flex; align-items: center; gap: 9px; font-weight: 700; }
+      .slot-indicator { width: 9px; height: 9px; border-radius: 3px; background: var(--blue); }
+      .slot.green .slot-indicator { background: var(--mint); }
+      .slot p { margin: 0; color: var(--muted); font-size: 13px; }
+      .section-head { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 17px; }
+      h2 { margin: 0; font-size: 22px; letter-spacing: -.035em; }
+      .section-note { margin: 0; color: var(--muted); font-size: 13px; }
+      .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+      .step { min-height: 146px; padding: 18px; }
+      .step-num { color: var(--mint); font: 13px ui-monospace, monospace; }
+      .step h3 { margin: 21px 0 6px; font-size: 15px; }
+      .step p { margin: 0; color: var(--muted); font-size: 12px; }
+      .rollback { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 26px; margin-top: 14px; padding: 24px 26px; }
+      .rollback h2 { margin-bottom: 5px; }
+      .rollback p { max-width: 690px; margin: 0; color: var(--muted); font-size: 13px; }
+      footer { display: flex; justify-content: space-between; gap: 20px; margin-top: 28px; color: var(--muted); font-size: 12px; }
+      footer a { text-decoration: none; }
+      footer a:hover { color: var(--ink); }
+      .error { color: var(--amber) !important; }
+      @media (max-width: 720px) {
+        main { padding-top: 44px; }
+        .hero-row { align-items: start; flex-direction: column; }
+        .actions { justify-content: start; }
+        .release { grid-template-columns: 1fr; }
+        .release-side { border-left: 0; border-top: 1px solid var(--line); }
+        .flow { grid-template-columns: 1fr 1fr; }
+        .rollback { grid-template-columns: 1fr; }
+        .slot-grid { margin-bottom: 38px; }
+        footer { flex-direction: column; }
+      }
+      @media (max-width: 460px) {
+        .shell { width: min(100% - 28px, 1120px); }
+        .repo { display: none; }
+        .slot-grid { grid-template-columns: 1fr; }
+        .flow { grid-template-columns: 1fr; }
+        .step { min-height: 120px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="shell topbar">
+        <div class="brand"><span class="brand-mark">BG</span><span>Release control</span></div>
+        <div class="repo">cloud-native-blue-green-deployment</div>
+        <div class="live-pill"><span class="dot" id="health-dot"></span><span id="connection-state">Connecting to live app</span></div>
+      </div>
+    </header>
+    <main class="shell">
+      <div class="hero-row">
+        <div>
+          <div class="eyebrow">Blue / Green deployment</div>
+          <h1>Release updates without the guesswork.</h1>
+          <p class="intro">See which version is live, how a release moves through the pipeline, and where to start a safe rollback.</p>
+        </div>
+        <div class="actions">
+          <a class="button" href="https://github.com/ajayjoffice/cloud-native-blue-green-deployment/actions" target="_blank" rel="noreferrer">View pipeline ↗</a>
+          <a class="button primary" href="https://github.com/ajayjoffice/cloud-native-blue-green-deployment/actions/workflows/ci-cd.yml" target="_blank" rel="noreferrer">Rollback in GitHub ↗</a>
+        </div>
+      </div>
+
+      <section class="panel release" aria-labelledby="live-heading">
+        <div class="release-main">
+          <div class="section-kicker" id="live-heading">Currently serving</div>
+          <div class="version" id="live-version">Loading version…</div>
+          <div class="release-meta">
+            <span class="tag slot-label" id="active-slot">Detecting active slot</span>
+            <span id="live-health">Checking health</span>
+          </div>
+        </div>
+        <div class="release-side">
+          <div class="section-kicker">Traffic status</div>
+          <strong id="traffic-state">Checking</strong>
+          <p id="traffic-detail">The dashboard checks the live API every 15 seconds.</p>
+        </div>
+      </section>
+
+      <div class="slot-grid" aria-label="Deployment slots">
+        <article class="panel slot blue" id="blue-slot">
+          <div class="slot-head"><div class="slot-name"><span class="slot-indicator"></span>Blue</div><span class="tag" id="blue-state">Standby slot</span></div>
+          <p>One application slot stays available while traffic is routed to the other.</p>
+        </article>
+        <article class="panel slot green" id="green-slot">
+          <div class="slot-head"><div class="slot-name"><span class="slot-indicator"></span>Green</div><span class="tag" id="green-state">Standby slot</span></div>
+          <p>A new release is checked here before Nginx sends live requests to it.</p>
+        </article>
+      </div>
+
+      <section aria-labelledby="flow-heading">
+        <div class="section-head">
+          <h2 id="flow-heading">How a version update moves</h2>
+          <p class="section-note">A push to <code>main</code> starts the pipeline.</p>
+        </div>
+        <div class="flow">
+          <article class="panel step"><div class="step-num">01 / VERIFY</div><h3>Test and build</h3><p>Ruff, pytest, and a container health check run first.</p></article>
+          <article class="panel step"><div class="step-num">02 / PACKAGE</div><h3>Publish image</h3><p>The checked release is tagged by its Git commit ID.</p></article>
+          <article class="panel step"><div class="step-num">03 / PREPARE</div><h3>Check standby</h3><p>EC2 starts the new version in the inactive color and checks health.</p></article>
+          <article class="panel step"><div class="step-num">04 / ROUTE</div><h3>Switch traffic</h3><p>Nginx changes traffic only after the new slot passes validation.</p></article>
+        </div>
+      </section>
+
+      <section class="panel rollback" aria-labelledby="rollback-heading">
+        <div>
+          <h2 id="rollback-heading">Need the previous release?</h2>
+          <p>Rollback runs through GitHub Actions, where your account must be signed in. It checks the other slot before changing traffic; visitors to this page cannot trigger deployment controls.</p>
+        </div>
+        <a class="button primary" href="https://github.com/ajayjoffice/cloud-native-blue-green-deployment/actions/workflows/ci-cd.yml" target="_blank" rel="noreferrer">Open rollback controls ↗</a>
+      </section>
+
+      <footer>
+        <span>FastAPI · Docker · Nginx · GitHub Actions · AWS EC2</span>
+        <a href="/docs">API documentation ↗</a>
+      </footer>
+    </main>
+    <script>
+      const version = document.querySelector("#live-version");
+      const health = document.querySelector("#live-health");
+      const connection = document.querySelector("#connection-state");
+      const traffic = document.querySelector("#traffic-state");
+      const trafficDetail = document.querySelector("#traffic-detail");
+      const activeSlot = document.querySelector("#active-slot");
+      const healthDot = document.querySelector("#health-dot");
+
+      async function refreshStatus() {
+        try {
+          const response = await fetch("/deployment/status", { cache: "no-store" });
+          if (!response.ok) throw new Error(`Status request returned ${response.status}`);
+          const data = await response.json();
+          version.textContent = data.version;
+          version.title = data.version;
+          health.textContent = data.health === "healthy" ? "Health check passing" : "Health check unavailable";
+          connection.textContent = "Live · updating automatically";
+          traffic.textContent = "Serving traffic";
+          const slot = data.active_slot;
+          if (slot) {
+            activeSlot.textContent = `${slot} is active`;
+            activeSlot.className = `tag slot-label ${slot}`;
+            document.querySelector("#blue-state").textContent = slot === "blue" ? "Serving traffic" : "Standby slot";
+            document.querySelector("#green-state").textContent = slot === "green" ? "Serving traffic" : "Standby slot";
+            trafficDetail.textContent = `Nginx is routing requests to the ${slot} slot.`;
+          } else {
+            activeSlot.textContent = "Active color unavailable";
+            trafficDetail.textContent = "The live version is available; Nginx slot metadata is not configured yet.";
+          }
+          healthDot.style.background = "var(--mint)";
+          healthDot.style.boxShadow = "0 0 12px #a9e6bd99";
+        } catch (error) {
+          connection.textContent = "Live status unavailable";
+          health.textContent = "Could not reach the application health endpoint";
+          traffic.textContent = "Status unavailable";
+          trafficDetail.textContent = error.message;
+          healthDot.style.background = "var(--amber)";
+          healthDot.style.boxShadow = "none";
+        }
+      }
+      refreshStatus();
+      window.setInterval(refreshStatus, 15000);
+    </script>
+  </body>
+</html>
