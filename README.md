@@ -1,45 +1,27 @@
 # Cloud-Native Blue-Green Deployment Pipeline
 
-A small FastAPI service and deployment pipeline that demonstrates safe releases with Docker, GitHub Actions, EC2, and Nginx. Blue and Green are two copies of the same application running side by side; the Nginx upstream decides which one receives production requests.
+A small FastAPI service that demonstrates blue-green releases with Docker, GitHub Actions, EC2, and Nginx. There is no deployment dashboard: use the EC2 terminal and `curl` to see which version receives traffic, deploy an update, and roll back.
 
-## Why blue-green?
-
-Replacing a live application in place can interrupt requests or expose users to an untested release. This project starts the new version beside the current one, checks it directly, and changes Nginx only after validation. The old version stays running as a simple rollback target.
-
-## Architecture
+## How it works
 
 ```text
-                         Public :80
-                            |
-                          Nginx
-                 active upstream config
-                    /             \
-          Blue :8001               Green :8002
-          standby/live             standby/live
+GitHub Actions (tests, lint, image and health check)
+                         |
+                 EC2 host Nginx :80
+                    /          \
+          Blue :8001            Green :8002
 ```
 
-Only the selected upstream receives user traffic. Both containers run the same API; `APP_VERSION` distinguishes releases (for example `v1.0.0` and `v2.0.0`).
-
-## Stack
-
-- Python 3.12, FastAPI, Uvicorn, Pytest, Ruff
-- Docker and Docker Compose
-- GitHub Actions
-- AWS EC2 and Nginx
-- Bash deployment and health-check scripts
+The app slots bind to loopback only. Nginx sends public requests to one slot. A deployment starts and validates the other slot before changing Nginx; the previous slot remains available for rollback.
 
 ## API
 
 | Route | Purpose |
 | --- | --- |
 | `GET /` | Application name and version |
-| `GET /health` | Liveness response and version |
-| `GET /version` | Current release identifier |
-| `POST /greet` | Small functional API; accepts `{"name":"Ada"}` |
-
-## Release dashboard
-
-Open `/dashboard` to check the live version and active color. Use **Deploy latest** or **Roll back** to open the matching GitHub Actions workflow. These actions require your GitHub sign-in; rollback checks the standby version before switching traffic.
+| `GET /health` | Health response and version |
+| `GET /version` | Version currently served by this app slot |
+| `POST /greet` | Small API example; accepts `{"name":"Ada"}` |
 
 ## Run locally
 
@@ -52,87 +34,63 @@ ruff check app tests
 uvicorn app.main:app --reload
 ```
 
-Visit <http://127.0.0.1:8000/docs>. Set another version with `APP_VERSION=v2.0.0 uvicorn app.main:app`.
+Open <http://127.0.0.1:8000/docs> for the API documentation.
 
-## Docker
-
-```bash
-docker build -t blue-green-demo:local .
-docker run --rm -p 8000:8000 -e APP_VERSION=v1.0.0 blue-green-demo:local
-curl http://localhost:8000/health
-curl http://localhost:8000/version
-```
-
-The image uses a slim Python base, installs dependencies without retaining pip cache, and runs as an unprivileged user.
-
-## Try blue-green locally
-
-Docker Compose runs Blue and Green plus Nginx. Nginx is published on port 8080; the app ports are bound to loopback on 8001 and 8002 for direct validation.
+## Local Docker and blue-green demo
 
 ```bash
 docker compose up -d --build
-curl http://localhost:8080/version    # initially v1.0.0 (Blue)
-deployment/blue-green/health-check.sh http://localhost:8080 v1.0.0
+curl http://localhost:8080/version
 deployment/blue-green/switch.sh green
-curl http://localhost:8080/version    # now v2.0.0 (Green)
+curl http://localhost:8080/version
 deployment/blue-green/rollback.sh
-curl http://localhost:8080/version    # back to Blue
+curl http://localhost:8080/version
 docker compose down
 ```
 
-To deploy a new image build into the inactive Compose color and switch after its version check:
+The default Compose versions are `v1.0.0` (Blue) and `v2.0.0` (Green). The output from each `curl` shows the version currently receiving traffic.
+
+## EC2 console demonstration
+
+The EC2 deployment guide explains initial setup. On the instance, clone the repository once and configure host Nginx as described there. For each release, use the commands below from the repository directory. They build the current source on EC2, deploy it to the inactive slot, check it, then switch Nginx only if it passes.
 
 ```bash
-deployment/blue-green/deploy.sh v3.0.0
+cd ~/cloud-native-blue-green-deployment
+git pull --ff-only
+VERSION="$(git rev-parse --short HEAD)"
+IMAGE="blue-green-demo:$VERSION"
+sudo docker build -t "$IMAGE" .
+sudo env PULL_IMAGE=false bash deployment/blue-green/deploy-ec2.sh "$IMAGE" "$VERSION"
+curl http://localhost/version
 ```
 
-The active color is read from the Nginx config. The other service is recreated with the requested version. If its health check fails, the script exits before switching traffic.
-
-## CI/CD flow
-
-`.github/workflows/ci-cd.yml` runs on pull requests, pushes to `main`, and manual deploy requests: checkout, Python setup, dependency install, Ruff, Pytest, Docker build, then a container health/version check. A dependent job publishes the commit image to GitHub Container Registry and a job on the repository's self-hosted EC2 runner deploys it to the inactive slot. It validates `/health` and `/version` before reloading Nginx. A separate manual workflow runs the guarded rollback script.
-
-Keep the repository private while it uses a self-hosted runner. The EC2 runner needs Docker and Nginx installed and must be registered in the repository's Actions runner settings. The workflow uses its automatically provided `GITHUB_TOKEN` for GHCR access, so no SSH or GHCR secrets are needed. Details are in [the AWS guide](deployment/aws/deployment-guide.md).
-
-## Rollback
-
-Local Compose:
+The `curl` output should be JSON with the deployed commit version. To demonstrate rollback, run:
 
 ```bash
-deployment/blue-green/rollback.sh
+sudo bash deployment/blue-green/rollback-ec2.sh
+curl http://localhost/version
 ```
 
-EC2:
+The second `curl` should show the prior release. To deploy another update, pull or edit a new commit, rebuild with its version, and run the deploy command again.
 
-```bash
-sudo /opt/blue-green/rollback-ec2.sh
-```
+## GitHub Actions
 
-Rollback changes the Nginx upstream to the other slot and reloads Nginx. Check the version currently receiving requests with `curl http://YOUR_HOST/version`.
+`.github/workflows/ci.yml` runs on pushes to `main` and pull requests. It runs Ruff and Pytest, builds the Docker image, then starts it and checks `/health` and `/version` on a GitHub-hosted runner. Deployment and rollback are deliberately run from the EC2 terminal, so CI needs no AWS credentials, registry secrets, or self-hosted runner.
 
-## Testing and health checks
+Before making this repository public, remove any registered self-hosted runner from **Settings → Actions → Runners**. A self-hosted runner should not remain attached to a public repository because public pull-request workflows can execute untrusted code.
 
-Pytest covers root, health, version, successful greeting, and invalid greeting input. `health-check.sh BASE_URL EXPECTED_VERSION` checks that health reports OK and that the expected version is served.
+## Project layout
 
-## Screenshots
+- `app/` — FastAPI application
+- `deployment/blue-green/` — local and EC2 deploy, switch, health, and rollback scripts
+- `deployment/nginx/` — Nginx configuration
+- `deployment/aws/deployment-guide.md` — EC2 setup and manual release walkthrough
+- `.github/workflows/ci.yml` — hosted CI checks
 
-Add screenshots here after running the demo, such as the GitHub Actions run and `/version` responses before and after switching.
+## Concepts demonstrated
 
-## Key DevOps concepts demonstrated
-
-- CI versus CD and pipeline stages
-- Immutable, version-tagged container images
-- Environment-based application configuration
-- Health checks and deployment gates
-- Reverse proxy routing and traffic switching
-- Blue-green deployment, rollback, and least-privilege container execution
-- GitHub Actions secrets and remote deployment
-
-## Future improvements
-
-- Add HTTPS with a domain and Let's Encrypt
-- Add a smoke test against the public endpoint after deployment
-- Add deployment history and an approval gate for production
-- Add metrics and centralized logs
-
-The initial project intentionally uses one EC2 instance and two app containers so each deployment step stays visible and explainable.
+- CI checks and container health validation
+- Versioned container images
+- Blue-green deployment and health gates
+- Nginx traffic switching and rollback
+- Private app ports behind a public reverse proxy

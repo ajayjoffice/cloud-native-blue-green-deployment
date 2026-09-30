@@ -1,14 +1,10 @@
 import os
-from pathlib import Path
-import re
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from pydantic import BaseModel, Field
-from fastapi.responses import FileResponse
 
 VERSION = os.getenv("APP_VERSION", "v1.0.0")
 app = FastAPI(title="Blue-Green Demo API", version=VERSION)
-STATIC_DIR = Path(__file__).parent / "static"
 
 
 class GreetingRequest(BaseModel):
@@ -28,30 +24,6 @@ def health() -> dict[str, str]:
 @app.get("/version")
 def version() -> dict[str, str]:
     return {"version": VERSION}
-
-
-@app.get("/dashboard", include_in_schema=False)
-def dashboard() -> FileResponse:
-    return FileResponse(STATIC_DIR / "dashboard.html")
-
-
-@app.get("/deployment/status")
-def deployment_status(request: Request) -> dict[str, str | None]:
-    upstream = request.headers.get("x-deployment-upstream", "")
-    slot = os.getenv("DEPLOYMENT_SLOT")
-    if slot not in {"blue", "green"}:
-        slot = None
-    if re.search(r"(?:blue|:8001)(?:$|,)", upstream):
-        slot = "blue"
-    elif re.search(r"(?:green|:8002)(?:$|,)", upstream):
-        slot = "green"
-    return {
-        "application": "cloud-native-blue-green",
-        "version": VERSION,
-        "health": "healthy",
-        "active_slot": slot,
-        "upstream": upstream or None,
-    }
 
 
 @app.post("/greet")

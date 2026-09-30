@@ -4,7 +4,6 @@ services:
     image: blue-green-demo:local
     environment:
       APP_VERSION: ${BLUE_VERSION:-v1.0.0}
-      DEPLOYMENT_SLOT: blue
     ports: ["127.0.0.1:8001:8000"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
@@ -16,7 +15,6 @@ services:
     image: blue-green-demo:local
     environment:
       APP_VERSION: ${GREEN_VERSION:-v2.0.0}
-      DEPLOYMENT_SLOT: green
     ports: ["127.0.0.1:8002:8000"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]

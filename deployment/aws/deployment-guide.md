@@ -1,54 +1,78 @@
 # AWS EC2 deployment guide
 
-This project uses one EC2 instance, Docker for two app containers, and host Nginx as the public reverse proxy. No AWS load balancer or other service is required.
+This guide runs a FastAPI app in two Docker containers on one EC2 instance. Host Nginx accepts HTTP on port 80 and routes requests to the active container. The blue and green ports are bound to loopback and should not be opened in the security group.
 
-## 1. Create the instance
+## 1. Create and secure the instance
 
-Launch Ubuntu Server 24.04 LTS. Use a small instance for learning, allocate a public IPv4 address, and create an SSH key pair. In the security group allow inbound TCP 22 only from your IP and TCP 80 from the clients who should reach the demo. Do not expose ports 8001 or 8002 publicly; the containers bind those ports to loopback.
+Launch Ubuntu Server 24.04 LTS. Assign a public IPv4 address. In the instance security group, allow inbound TCP 22 from your current IP for SSH and TCP 80 from the internet for the demo website. Do not add inbound rules for ports 8001 or 8002. Keep the downloaded EC2 key pair private.
 
-## 2. Install Docker and Nginx
+## 2. Install prerequisites
 
-SSH into the instance, then run:
+Connect to the instance using SSH or EC2 Instance Connect, then run:
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y docker.io nginx curl git
 sudo systemctl enable --now docker nginx
-sudo usermod -aG docker "$USER"
 ```
 
-Log out and back in for Docker group membership to take effect. Clone your GitHub project on the instance (replace `OWNER` and `REPOSITORY`), then install the deployment scripts into `/opt/blue-green`:
+Clone the public repository (or use your private-repository SSH URL until you change its visibility):
 
 ```bash
-git clone https://github.com/OWNER/REPOSITORY.git ~/cloud-native-blue-green-deployment
+git clone https://github.com/ajayjoffice/cloud-native-blue-green-deployment.git ~/cloud-native-blue-green-deployment
 cd ~/cloud-native-blue-green-deployment
-sudo mkdir -p /opt/blue-green
-sudo cp deployment/blue-green/{deploy-ec2.sh,health-check.sh,rollback-ec2.sh} /opt/blue-green/
-sudo chmod +x /opt/blue-green/*.sh
 ```
 
-Configure Nginx with `/etc/nginx/nginx.conf` from `deployment/nginx/nginx.conf`, and create `/etc/nginx/conf.d/active-upstream.conf`:
+## 3. Configure host Nginx
 
-```nginx
-upstream active_app { server 127.0.0.1:8001; }
-```
-
-Then validate and reload: `sudo nginx -t && sudo systemctl reload nginx`.
-
-## 3. GitHub Actions runner
-
-Register the EC2 instance as a repository-level self-hosted GitHub Actions runner. The workflow uses GitHub-hosted runners for tests and image publishing, then runs the deploy job on the EC2 runner. This avoids opening SSH to GitHub-hosted runner IPs. Keep the repository private while it uses a self-hosted runner.
-
-The deploy job authenticates to GHCR with the workflow's `GITHUB_TOKEN`, installs the Nginx configuration, then runs `deployment/blue-green/deploy-ec2.sh` directly on EC2. No EC2 SSH secrets or GHCR personal access token are required. The runner service account must be able to run Docker and passwordless `sudo` for the deploy script. To roll back from the web, open `/dashboard`, follow its GitHub Actions link, and run the workflow manually; it checks the other slot before changing Nginx.
-
-## 4. Manual deployment and rollback
-
-On the instance, after logging in to GHCR when required:
+Install the project Nginx configuration and set the initial active slot to Blue:
 
 ```bash
-sudo /opt/blue-green/deploy-ec2.sh ghcr.io/OWNER/REPOSITORY:COMMIT_SHA v2.0.0
-curl http://localhost/version
-sudo /opt/blue-green/rollback-ec2.sh
+sudo install -m 0644 deployment/nginx/nginx.conf /etc/nginx/nginx.conf
+printf 'upstream active_app {\n    server 127.0.0.1:8001;\n}\n' | sudo tee /etc/nginx/conf.d/active-upstream.conf
+sudo nginx -t
+sudo systemctl enable --now nginx
+sudo systemctl reload nginx
 ```
 
-The deploy script chooses the inactive color, starts it on port 8001 or 8002, checks both `/health` and `/version`, and only then changes Nginx and reloads it. If validation or Nginx configuration fails, the previous Nginx config remains in place. The old container is retained to make rollback a quick traffic change.
+Nginx listens on port 80. Confirm that the EC2 security group allows HTTP, then check `http://YOUR_EC2_PUBLIC_IPV4/health` from your Mac browser or terminal. The first deployment command below creates the Blue and Green containers.
+
+## 4. Build and deploy a release
+
+Run these commands in the repository directory on EC2 whenever you want to deploy the latest code:
+
+```bash
+cd ~/cloud-native-blue-green-deployment
+git pull --ff-only
+VERSION="$(git rev-parse --short HEAD)"
+IMAGE="blue-green-demo:$VERSION"
+sudo docker build -t "$IMAGE" .
+sudo env PULL_IMAGE=false bash deployment/blue-green/deploy-ec2.sh "$IMAGE" "$VERSION"
+curl http://localhost/version
+```
+
+The script starts the inactive color on its loopback port, checks `/health` and the expected `/version`, and then switches and reloads Nginx. If validation fails, Nginx keeps serving the old color. The final `curl` prints the version receiving traffic.
+
+To deploy another release, pull a new commit and repeat the commands. Each build gets a commit-based version label.
+
+## 5. Roll back and verify
+
+The other slot keeps the previous app available. Run:
+
+```bash
+cd ~/cloud-native-blue-green-deployment
+sudo bash deployment/blue-green/rollback-ec2.sh
+curl http://localhost/version
+```
+
+Rollback checks the standby slot before changing Nginx. The `curl` result should now show the previous version. You can also check from your Mac using `curl http://YOUR_EC2_PUBLIC_IPV4/version`.
+
+## GitHub Actions runner
+
+The project uses GitHub-hosted Actions for CI only. It does not need an EC2 self-hosted runner, AWS credentials, or a container registry token. If an EC2 self-hosted runner was registered during earlier setup, remove it from the repository's **Settings → Actions → Runners** before making the repository public. Stop and uninstall its service on EC2 after removing it in GitHub:
+
+```bash
+cd ~/actions-runner
+sudo ./svc.sh stop
+sudo ./svc.sh uninstall
+```

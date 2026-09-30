@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -r requirements.txt
+      - run: ruff check app tests
+      - run: pytest -q
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: blue-green-demo:${{ github.sha }}
+      - name: Validate container health and version
+        env:
+          EXPECTED_VERSION: ${{ github.sha }}
+        run: |
+          docker run -d --name api -p 8000:8000 -e APP_VERSION="$EXPECTED_VERSION" blue-green-demo:${{ github.sha }}
+          trap 'docker rm -f api >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 20); do
+            if curl --fail --silent http://127.0.0.1:8000/health; then break; fi
+            sleep 2
+          done
+          curl --fail http://127.0.0.1:8000/version | grep -F '"version":"'"$EXPECTED_VERSION"'"'
