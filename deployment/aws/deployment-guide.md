@@ -16,7 +16,7 @@ sudo apt-get install -y docker.io nginx curl git
 sudo systemctl enable --now docker nginx
 ```
 
-Clone the public repository (or use your private-repository SSH URL until you change its visibility):
+Clone the public repository over HTTPS:
 
 ```bash
 git clone https://github.com/ajayjoffice/cloud-native-blue-green-deployment.git ~/cloud-native-blue-green-deployment
@@ -35,7 +35,7 @@ sudo systemctl enable --now nginx
 sudo systemctl reload nginx
 ```
 
-Nginx listens on port 80. Confirm that the EC2 security group allows HTTP, then check `http://YOUR_EC2_PUBLIC_IPV4/health` from your Mac browser or terminal. The first deployment command below creates the Blue and Green containers.
+Nginx listens on port 80. Confirm that the EC2 security group allows HTTP. The first deployment command below creates the initial app slot and switches Nginx to it; after a second successful deployment, the previous release is available in the other slot for rollback. Then check `http://YOUR_EC2_PUBLIC_IPV4/health` from your Mac browser or terminal.
 
 ## 4. Build and deploy a release
 
