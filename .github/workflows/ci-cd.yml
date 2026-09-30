@@ -41,7 +41,7 @@ jobs:
           docker rm -f api
 
   publish:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     needs: test-and-build
     runs-on: ubuntu-latest
     permissions:
@@ -62,7 +62,7 @@ jobs:
           tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
 
   deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     needs: publish
     runs-on: self-hosted
     permissions:
@@ -84,14 +84,3 @@ jobs:
           sudo nginx -t
           sudo systemctl reload nginx
           sudo bash deployment/blue-green/deploy-ec2.sh "$IMAGE" "$APP_VERSION"
-
-  rollback:
-    if: github.event_name == 'workflow_dispatch'
-    needs: test-and-build
-    runs-on: self-hosted
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - name: Roll back to the previous healthy slot
-        run: sudo bash deployment/blue-green/rollback-ec2.sh

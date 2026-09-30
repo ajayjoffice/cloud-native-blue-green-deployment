@@ -10,7 +10,7 @@ case "$TARGET" in blue) PORT=8001;; green) PORT=8002;; *) echo "Target must be b
 NAME="blue-green-$TARGET"
 docker pull "$IMAGE"
 docker rm -f "$NAME" >/dev/null 2>&1 || true
-docker run -d --name "$NAME" --restart unless-stopped -p "127.0.0.1:$PORT:8000" -e "APP_VERSION=$VERSION" "$IMAGE"
+docker run -d --name "$NAME" --restart unless-stopped -p "127.0.0.1:$PORT:8000" -e "APP_VERSION=$VERSION" -e "DEPLOYMENT_SLOT=$TARGET" "$IMAGE"
 "$(dirname "${BASH_SOURCE[0]}")/health-check.sh" "http://127.0.0.1:$PORT" "$VERSION"
 
 TMP="$(mktemp)"

@@ -38,7 +38,9 @@ def dashboard() -> FileResponse:
 @app.get("/deployment/status")
 def deployment_status(request: Request) -> dict[str, str | None]:
     upstream = request.headers.get("x-deployment-upstream", "")
-    slot = None
+    slot = os.getenv("DEPLOYMENT_SLOT")
+    if slot not in {"blue", "green"}:
+        slot = None
     if re.search(r"(?:blue|:8001)(?:$|,)", upstream):
         slot = "blue"
     elif re.search(r"(?:green|:8002)(?:$|,)", upstream):
