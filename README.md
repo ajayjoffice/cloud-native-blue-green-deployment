@@ -1,24 +1,23 @@
-# 1. Cloud-Native Blue-Green Deployment Pipeline
+# Cloud-Native Blue-Green Deployment Pipeline
 
 A learning project demonstrating a FastAPI application deployed in Blue and Green slots behind Nginx. Deployment scripts start and validate a release in the inactive slot before directing traffic to it. The project includes a local Docker Compose demonstration and a manually operated, single-instance AWS EC2 setup.
 
 This project demonstrates a deployment pattern; it is not a production platform and does not claim measured zero downtime.
 
-**Table of contents**
+## Table of Contents
 
-- [1. Project title and description](#1-cloud-native-blue-green-deployment-pipeline)
-- [2. Overview](#2-overview)
-- [3. Key Features](#3-key-features)
-- [4. Technology stack](#4-technology-stack)
-- [5. Getting started](#5-getting-started)
-- [6. Usage](#6-usage)
-- [7. Project structure](#7-project-structure)
-- [8. Architecture and workflow](#8-architecture-and-workflow)
-- [9. Results and evaluation](#9-results-and-evaluation)
-- [10. Limitations](#10-limitations)
-- [11. Future improvements](#11-future-improvements)
+- [1. Overview](#1-overview)
+- [2. Key Features](#2-key-features)
+- [3. Technology stack](#3-technology-stack)
+- [4. Getting started](#4-getting-started)
+- [5. Usage](#5-usage)
+- [6. Project structure](#6-project-structure)
+- [7. Architecture and workflow](#7-architecture-and-workflow)
+- [8. Results and evaluation](#8-results-and-evaluation)
+- [9. Limitations](#9-limitations)
+- [10. Future improvements](#10-future-improvements)
 
-## 2. Overview
+## 1. Overview
 
 Blue-green deployment uses two application slots. Nginx sends requests to one active slot while the other can be started and checked. The scripts verify the inactive slot's health endpoint and expected version before switching Nginx. The former active slot remains available as a rollback target until a later deployment reuses it.
 
@@ -26,7 +25,7 @@ The sample service exposes health, version, application identity, and greeting e
 
 The local environment runs Blue, Green, and Nginx as Docker Compose services. The EC2 guide runs the app containers on one Ubuntu host, with host Nginx routing to loopback ports. GitHub Actions runs tests, linting, and container validation; it does not deploy to AWS.
 
-## 3. Key Features
+## 2. Key Features
 
 - FastAPI endpoints for health, version, application identity, and a sample greeting.
 - Docker image based on Python 3.12 slim, running as an unprivileged user.
@@ -53,7 +52,7 @@ curl -X POST http://localhost:8000/greet \
   -d '{"name":"Ada"}'
 ```
 
-## 4. Technology stack
+## 3. Technology stack
 
 Versions below are specified in the repository at the time this README was written.
 
@@ -73,7 +72,7 @@ Versions below are specified in the repository at the time this README was writt
 
 Python package versions are pinned in [`requirements.txt`](requirements.txt). The container base and workflow action versions are declared in [`Dockerfile`](Dockerfile) and [`.github/workflows/ci.yml](.github/workflows/ci.yml).
 
-## 5. Getting started
+## 4. Getting started
 
 **Requirements**
 
@@ -117,7 +116,7 @@ Check `http://localhost:8000/health` and `http://localhost:8000/version`. The im
 
 ![Terminal showing the API root, health, version, and greeting responses](docs/images/api-running.png)
 
-## 6. Usage
+## 5. Usage
 
 **Run the local Blue-Green demo**
 
@@ -233,7 +232,7 @@ sudo docker ps
 
 The repository includes an MIT License. See [`LICENSE`](LICENSE) for the complete terms.
 
-## 7. Project structure
+## 6. Project structure
 
 ```text
 .
@@ -262,7 +261,7 @@ The repository includes an MIT License. See [`LICENSE`](LICENSE) for the complet
 └── README.md
 ```
 
-## 8. Architecture and workflow
+## 7. Architecture and workflow
 
 **Component architecture**
 
@@ -308,7 +307,7 @@ The workflow has read-only repository contents permission. It requires no AWS cr
 
 ![Successful GitHub Actions test-and-build job showing lint, tests, image build, and container health validation](docs/images/github-actions-ci.png)
 
-## 9. Results and evaluation
+## 8. Results and evaluation
 
 The project provides functional checks rather than a performance benchmark. Its observable criteria are:
 
@@ -343,9 +342,9 @@ curl --fail http://127.0.0.1:8000/version
 
 Expected responses contain `"status":"ok"` and `"version":"local-check"` respectively.
 
-The local Blue → Green → rollback version sequence is captured in the [Usage section](#6-usage). Together with the CI run above, it provides the project's current functional evaluation evidence.
+The local Blue → Green → rollback version sequence is captured in the [Usage section](#5-usage). Together with the CI run above, it provides the project's current functional evaluation evidence.
 
-## 10. Limitations
+## 9. Limitations
 
 - The EC2 deployment uses one instance and does not survive instance or host failure.
 - Both slots share host resources.
@@ -359,7 +358,7 @@ The local Blue → Green → rollback version sequence is captured in the [Usage
 - CI builds and validates an image but does not publish it or deploy it.
 - The scripts are tailored to the layouts in this repository, not a general-purpose deployment framework.
 
-## 11. Future improvements
+## 10. Future improvements
 
 - Add post-switch smoke checks through Nginx and restore the old upstream if they fail.
 - Measure request errors, latency, and switch duration before making availability claims.
