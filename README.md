@@ -1,8 +1,22 @@
-# Cloud-Native Blue-Green Deployment Pipeline
+# 1. Cloud-Native Blue-Green Deployment Pipeline
 
 A learning project demonstrating a FastAPI application deployed in Blue and Green slots behind Nginx. Deployment scripts start and validate a release in the inactive slot before directing traffic to it. The project includes a local Docker Compose demonstration and a manually operated, single-instance AWS EC2 setup.
 
 This project demonstrates a deployment pattern; it is not a production platform and does not claim measured zero downtime.
+
+**Table of contents**
+
+- [1. Project title and description](#1-cloud-native-blue-green-deployment-pipeline)
+- [2. Overview](#2-overview)
+- [3. Key Features](#3-key-features)
+- [4. Technology stack](#4-technology-stack)
+- [5. Getting started](#5-getting-started)
+- [6. Usage](#6-usage)
+- [7. Project structure](#7-project-structure)
+- [8. Architecture and workflow](#8-architecture-and-workflow)
+- [9. Results and evaluation](#9-results-and-evaluation)
+- [10. Limitations](#10-limitations)
+- [11. Future improvements](#11-future-improvements)
 
 ## 2. Overview
 
